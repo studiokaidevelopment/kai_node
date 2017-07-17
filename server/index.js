@@ -1,3 +1,6 @@
+/**
+ *  AUTHENTICATE WITH GOOGLE
+ */ 
 var google = require('googleapis');
 var private_key = require('./kai_beta_secret.json');
 var CALENDAR_ID = "studiokaidevelopment@gmail.com"
@@ -19,30 +22,42 @@ jwtClient.authorize(function (err, tokens) {
 
 var calendar = google.calendar('v3');
 
+/**
+ *  AUTHENTICATE WITH FACEBOOK
+ */ 
 var FB = require('fb'), fb = new FB.Facebook({version: 'v2.9'});
-FB.setAccessToken('*****************************');
+FB.setAccessToken('*********************');
 
+/**
+ *  SET UP EXPRESS AND MIDDLEWARE
+ */ 
 var express = require('express');
 var bodyParser = require('body-parser');
 var methodOverride = require('method-override');
 var _ = require('lodash');
 
-var app = express();
+var server = express();
+server.use(bodyParser.urlencoded({extended: true}));
+server.use(bodyParser.json());
+server.use(methodOverride('X-HTTP-Method-Override'));
 
-// Add Middleware necessary for REST API's
-app.use(bodyParser.urlencoded({extended: true}));
-app.use(bodyParser.json());
-app.use(methodOverride('X-HTTP-Method-Override'));
-
-// CORS Support
-app.use(function(req, res, next) {
+server.use(function(req, res, next) {
 	res.header('Access-Control-Allow-Origin', '*');
 	res.header('Access-Control-Allow-Origin', 'GET,PUT,POST,DELETE');
 	res.header('Access-Control-Allow-Origin', 'Content-Type');
 	next();
 });
 
-app.use('/events/start/:start/end/:end', function(req, res, next) {
+server.models = require('./models/index.js');
+var routes = require('./routes.js');
+_.each(routes, function(controller, route) {
+	server.use(route, controller(server, route));
+});
+
+/**
+ *  REST API
+ */ 
+server.use('/events/start/:start/end/:end', function(req, res, next) {
 	calendar.events.list({
 		auth: jwtClient,
 		calendarId: "studiokaidevelopment@gmail.com",
@@ -61,7 +76,7 @@ app.use('/events/start/:start/end/:end', function(req, res, next) {
 	});
 });
 
-app.use('/events/insert', function(req, res, next) {
+server.use('/events/insert', function(req, res, next) {
 	console.log(req.query.event);
 	var event = JSON.parse(req.query.event);
 	console.log(event.attendees[0]);
@@ -86,7 +101,7 @@ app.use('/events/insert', function(req, res, next) {
 	});
 });
 
-app.use('/fb', function(req, res, next) {
+server.use('/fb', function(req, res, next) {
 	FB.api('401405703230827_1447912928580094?fields=attachments', function (response) {
 		if(!response || response.error) {
 			console.log(!response ? 'error occurred' : response.error);
@@ -99,11 +114,5 @@ app.use('/fb', function(req, res, next) {
 	});
 });
 
-app.models = require('./models/index.js');
-var routes = require('./routes.js');
-_.each(routes, function(controller, route) {
-	app.use(route, controller(app, route));
-});
-
-console.log('Listening on port 3000');
-app.listen(8080, '0.0.0.0');
+console.log('Listening on port 8080');
+server.listen(8080, '0.0.0.0');
